@@ -13,6 +13,10 @@ using IdentityServer4;
 using IdentityServer4.Configuration;
 using IdentityServer4.Models;
 using IdentityServer4.Test;
+using IdentityServer.Model;
+using IdentityServer4.Validation;
+using IdentityServer4.Services;
+using IdentityServer4.Stores;
 
 namespace IdentityServer
 {
@@ -21,6 +25,9 @@ namespace IdentityServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
+            services.AddScoped<IUserRepository, MockUserRepo>();
+
 
             services.AddIdentityServer(options =>
             {
@@ -54,6 +61,8 @@ namespace IdentityServer
                     CookieLifetime = TimeSpan.FromDays(1)
                 };
 
+                
+
             })
                 // тестовый x509-сертификат, IdentityServer использует RS256 для подписи JWT
                 .AddDeveloperSigningCredential()
@@ -62,9 +71,11 @@ namespace IdentityServer
                 // что включать в access_token
                 .AddInMemoryApiResources(GetApiResources())
                 // настройки клиентских приложений
-                .AddInMemoryClients(GetClients())
-                // тестовые пользователи
-                .AddTestUsers(GetUsers());
+                .AddInMemoryClients(GetClients()).AddProfileService<ProfileService>().AddResourceOwnerValidator<ResourceOwnerPasswordValidator>();
+            
+            services.AddSingleton<IResourceOwnerPasswordValidator, ResourceOwnerPasswordValidator>();
+            services.AddSingleton<IProfileService, ProfileService>();
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -76,6 +87,9 @@ namespace IdentityServer
 
             // подключаем middleware IdentityServer
             app.UseIdentityServer();
+
+            
+
 
             // эти 2 строчки нужны, чтобы нормально обрабатывались страницы логина
             app.UseStaticFiles();
@@ -145,39 +159,6 @@ namespace IdentityServer
 
                     // разрешено ли получение refresh-токенов через указание scope offline_access
                     AllowOfflineAccess = false,
-                }
-            };
-        }
-
-        public static List<TestUser> GetUsers()
-        {
-            return new List<TestUser>
-            {
-                new TestUser
-                {
-                    SubjectId = "1",
-                    Username = "alice",
-                    Password = "password",
-
-                    Claims = new List<Claim>
-                    {
-                        new Claim("name", "Alice"),
-                        new Claim("website", "https://alice.com"),
-                        new Claim("role", "user"),
-                    }
-                },
-                new TestUser
-                {
-                    SubjectId = "2",
-                    Username = "bob",
-                    Password = "password",
-
-                    Claims = new List<Claim>
-                    {
-                        new Claim("name", "Bob"),
-                        new Claim("website", "https://bob.com"),
-                        new Claim("role", "admin"),
-                    }
                 }
             };
         }
